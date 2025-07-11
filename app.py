@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 import os
 import mysql.connector
 from mysql.connector import pooling
+from functiondb import cek_berdasarkan_email, registerpengguna
+from database import db_pool
 
 # Memuat variabel dari file .env
 load_dotenv()
@@ -18,23 +20,9 @@ app = Flask(__name__)
 app.config["JWT_SECRET_KEY"] = os.environ.get('JWT_SECRET')
 jwt = JWTManager(app)
 
-# --- KONFIGURASI DATABASE CONNECTION POOL ---
-try:
-    db_pool = mysql.connector.pooling.MySQLConnectionPool(
-        pool_name="ftth_pool",
-        pool_size=5,
-        host=os.environ.get('DB_HOST'),
-        user=os.environ.get('DB_USER'),
-        password=os.environ.get('DB_PASS'),
-        database=os.environ.get('DB_NAME')
-    )
-    print("Database connection pool created successfully.")
-except mysql.connector.Error as err:
-    print(f"Error creating database connection pool: {err}")
-    exit()
 
 # --- RUTE LOGIN ---
-@app.route('/login', methods=['POST'])
+@app.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json()
     if not data or 'username' not in data or 'password' not in data:
@@ -49,7 +37,6 @@ def login():
         conn = db_pool.get_connection()
         cursor = conn.cursor(dictionary=True)
 
-        # Ubah query untuk mencari berdasarkan kolom 'email'
         query = "SELECT * FROM users WHERE email = %s"
         cursor.execute(query, (email_from_app,))
         user = cursor.fetchone()
@@ -70,6 +57,29 @@ def login():
             cursor.close()
         if conn and conn.is_connected():
             conn.close()
+
+# --- RUTE REGISTER ---
+@app.route('/api/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    if not data or 'nama' not in data or 'email' not in data:
+        return jsonify({"msg": "Request JSON tidak valid"}), 400
+
+    nama = data['nama']
+    email = data['email']
+
+
+    cek_user_ada = cek_berdasarkan_email(email)
+    if cek_user_ada:
+        return jsonify({"msg": "Email sudah terdaftar"}), 409
+
+    cek_tambahkan_user = registerpengguna(nama, email)
+    if cek_tambahkan_user:
+        return jsonify({"msg": "Pendaftaran berhasil"}), 201
+    
+    else:
+         return jsonify({"msg": "Gagal Daftar"}), 400
+    
 
 # Menjalankan aplikasi
 if __name__ == '__main__':
