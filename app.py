@@ -1,5 +1,3 @@
-# file: app.py
-
 from flask import Flask, request, jsonify
 from flask_jwt_extended import create_access_token, JWTManager
 from werkzeug.security import check_password_hash
@@ -7,7 +5,7 @@ from dotenv import load_dotenv
 import os
 import mysql.connector
 from mysql.connector import pooling
-from functiondb import cek_berdasarkan_email, registerpengguna
+from functiondb import cek_berdasarkan_email, registerpengguna, kirim_kode_verifikasi
 from database import db_pool
 
 # Memuat variabel dari file .env
@@ -25,10 +23,10 @@ jwt = JWTManager(app)
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json()
-    if not data or 'username' not in data or 'password' not in data:
+    if not data or 'email' not in data or 'password' not in data:
         return jsonify({"msg": "Request JSON tidak valid"}), 400
 
-    email_from_app = data['username']
+    email_from_app = data['email']
     password = data['password']
 
     conn = None
